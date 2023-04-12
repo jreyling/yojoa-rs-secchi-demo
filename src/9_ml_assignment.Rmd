@@ -17,6 +17,7 @@ library(tidyverse)
 library(xgboost)
 library(Metrics)
 library(ggpmisc)
+library(randomForest)
 
 match_dir = 'data/matchups/'
 model_dir = 'data/models/'
@@ -280,9 +281,9 @@ altering the hyperparameters and see if you can get a better RMSE AND R2. Here y
 #set the parameters of the boost algo
 params <- list(booster = "gbtree", 
                objective = "reg:squarederror", 
-               eta=0.3, 
-               gamma=2, 
-               max_depth=5, 
+               eta=0.4, 
+               gamma=5, 
+               max_depth=6, 
                min_child_weight=3, 
                subsample=1, 
                colsample_bytree=1)
@@ -370,11 +371,32 @@ JPrep = function(df) {
 }
 
 
-sameDay <- JPrep(sameDay)
-oneDay <- JPrep(oneDay)
-threeDay <- JPrep(threeDay)
-fiveDay <- JPrep(fiveDay)
+sameDayJ <- JPrep(sameDay)
+oneDayJ <- JPrep(oneDay)
+threeDayJ <- JPrep(threeDay)
+fiveDayJ <- JPrep(fiveDay)
 
+## Identify our target (value is secchi)
+target <- 'secchi'
+
+##Pull 20% as holdout test data
+test_fiveDayJ <- fiveDayJ %>%
+  sample_frac(.2) 
+
+## Remove holdout data
+train_fiveDayJ <- fiveDayJ %>% filter(!rowid %in% test_fiveDayJ$rowid) 
+
+hist(train_fiveDayJ$secchi)
+hist(test_fiveDayJ$secchi)
+
+
+band_met5_feats <- c('med_Blue_corr', 'med_Green_corr', 'med_Red_corr', 'med_Nir_corr', 'NR', 'BG', 'BR', 'tot_sol_rad_KJpm2_5', 'max_temp_degK_5', 'min_temp_degK_5', 'tot_precip_m_5', 'mean_wind_mps_5')
+
+## Format it the way xgboost likes
+dtrain_fd_bm5J <- xgb.DMatrix(data = as.matrix(train_fiveDay[,band_met5_feats]), 
+                      label = train_fiveDay[,target])
+dtest_fd_bm5J <- xgb.DMatrix(data = as.matrix(test_fiveDay[,band_met5_feats]), 
+                     label = test_fiveDay[,target])
 ```
 
 
@@ -382,38 +404,38 @@ fiveDay <- JPrep(fiveDay)
 
 ```{r}
 #set the parameters of the boost algo
-params <- list(booster = "gbtree", 
+paramsJ <- list(booster = "gbtree", 
                objective = "reg:squarederror", 
-               eta=0.5, 
-               gamma=6, 
+               eta=0.3, 
+               gamma=2, 
                max_depth=5, 
                min_child_weight=3, 
                subsample=1, 
                colsample_bytree=1)
 
 #run the boost algo with those settings
-xgb_naive_fd_bm5_play <- xgb.train(params = params, 
-                             data = dtrain_fd_bm5, 
+xgb_naive_fd_bm5_playJ <- xgb.train(params = paramsJ, 
+                             data = dtrain_fd_bm5J, 
                              nrounds = 1000, 
-                             watchlist = list(train = dtrain_fd_bm5, 
-                                              val = dtest_fd_bm5), 
+                             watchlist = list(train = dtrain_fd_bm5J, 
+                                              val = dtest_fd_bm5J), 
                              print_every_n = 25, 
                              early_stopping_rounds = 10, 
                              maximize = F)
 
 #data output summary
-preds_fd_bm5_play <- test_fiveDay %>% mutate(predicted_fd_bm5 = predict(xgb_naive_fd_bm5_play, dtest_fd_bm5))
+preds_fd_bm5_playJ <- test_fiveDayJ %>% mutate(predicted_fd_bm5J = predict(xgb_naive_fd_bm5_playJ, dtest_fd_bm5J))
 
-evals_fd_bm5_play <- preds_fd_bm5_play %>%
-  summarise(rmse = rmse(secchi, predicted_fd_bm5),
-            mae = mae(secchi, predicted_fd_bm5),
-            mape = mape(secchi, predicted_fd_bm5),
-            bias = bias(secchi, predicted_fd_bm5),
-            p.bias = percent_bias(secchi, predicted_fd_bm5),
-            smape = smape(secchi, predicted_fd_bm5)) 
+evals_fd_bm5_playJ <- preds_fd_bm5_playJ %>%
+  summarise(rmse = rmse(secchi, predicted_fd_bm5J),
+            mae = mae(secchi, predicted_fd_bm5J),
+            mape = mape(secchi, predicted_fd_bm5J),
+            bias = bias(secchi, predicted_fd_bm5J),
+            p.bias = percent_bias(secchi, predicted_fd_bm5J),
+            smape = smape(secchi, predicted_fd_bm5J)) 
 
 #plot the results
-ggplot(preds_fd_bm5_play, aes(x = secchi, y = predicted_fd_bm5)) + 
+ggplot(preds_fd_bm5_play, aes(x = secchi, y = predicted_fd_bm5J)) + 
   geom_point() +
   geom_abline(color = 'grey', lty = 2) + 
   coord_cartesian(xlim = c(0, 6.5),
@@ -430,7 +452,6 @@ ggplot(preds_fd_bm5_play, aes(x = secchi, y = predicted_fd_bm5)) +
   theme_bw()+
   theme(plot.title = element_text(hjust = 0.5, face = 'bold'),
         plot.subtitle = element_text(hjust = 0.5))
-
 ```
 
 
