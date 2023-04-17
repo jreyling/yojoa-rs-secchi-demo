@@ -281,8 +281,8 @@ altering the hyperparameters and see if you can get a better RMSE AND R2. Here y
 #set the parameters of the boost algo
 params <- list(booster = "gbtree", 
                objective = "reg:squarederror", 
-               eta=0.4, 
-               gamma=5, 
+               eta=0.475, 
+               gamma=6, 
                max_depth=6, 
                min_child_weight=3, 
                subsample=1, 
@@ -331,12 +331,9 @@ ggplot(preds_fd_bm5_play, aes(x = secchi, y = predicted_fd_bm5)) +
 
 #### Report your RMSE here
 
-[1]	train-rmse:1.758348	val-rmse:1.873447 
-Multiple eval metrics are present. Will use val_rmse for early stopping.
-Will train until val_rmse hasn't improved in 10 rounds.
- 
-Stopping. Best iteration:
-[24]	train-rmse:0.703952	val-rmse:0.768481
+1]	train-rmse:1.819980	val-rmse:1.933722 
+[26]	train-rmse:0.688340	val-rmse:0.749140
+r^2: 0.56 
 
 ### What hypertuning parameters most impacted your model performance?
 
@@ -390,13 +387,24 @@ hist(train_fiveDayJ$secchi)
 hist(test_fiveDayJ$secchi)
 
 
-band_met5_feats <- c('med_Blue_corr', 'med_Green_corr', 'med_Red_corr', 'med_Nir_corr', 'NR', 'BG', 'BR', 'tot_sol_rad_KJpm2_5', 'max_temp_degK_5', 'min_temp_degK_5', 'tot_precip_m_5', 'mean_wind_mps_5')
+band_met5_featsJ <- c('med_Blue_corr', 
+                     'med_Green_corr', 
+                     'med_Red_corr', 
+                     'med_Nir_corr', 
+                     'NR', 
+                     'BG', 
+                     'BR', 
+                     'tot_sol_rad_KJpm2_5', 
+                     'max_temp_degK_5', 
+                     'min_temp_degK_5', 
+                     'tot_precip_m_5', 
+                     'mean_wind_mps_5')
 
 ## Format it the way xgboost likes
-dtrain_fd_bm5J <- xgb.DMatrix(data = as.matrix(train_fiveDay[,band_met5_feats]), 
-                      label = train_fiveDay[,target])
-dtest_fd_bm5J <- xgb.DMatrix(data = as.matrix(test_fiveDay[,band_met5_feats]), 
-                     label = test_fiveDay[,target])
+dtrain_fd_bm5J <- xgb.DMatrix(data = as.matrix(train_fiveDayJ[,band_met5_featsJ]), 
+                      label = train_fiveDayJ[,target])
+dtest_fd_bm5J <- xgb.DMatrix(data = as.matrix(test_fiveDayJ[,band_met5_featsJ]), 
+                     label = test_fiveDayJ[,target])
 ```
 
 
@@ -406,8 +414,8 @@ dtest_fd_bm5J <- xgb.DMatrix(data = as.matrix(test_fiveDay[,band_met5_feats]),
 #set the parameters of the boost algo
 paramsJ <- list(booster = "gbtree", 
                objective = "reg:squarederror", 
-               eta=0.3, 
-               gamma=2, 
+               eta=0.45, 
+               gamma=5, 
                max_depth=5, 
                min_child_weight=3, 
                subsample=1, 
@@ -435,7 +443,7 @@ evals_fd_bm5_playJ <- preds_fd_bm5_playJ %>%
             smape = smape(secchi, predicted_fd_bm5J)) 
 
 #plot the results
-ggplot(preds_fd_bm5_play, aes(x = secchi, y = predicted_fd_bm5J)) + 
+ggplot(preds_fd_bm5_playJ, aes(x = secchi, y = predicted_fd_bm5J)) + 
   geom_point() +
   geom_abline(color = 'grey', lty = 2) + 
   coord_cartesian(xlim = c(0, 6.5),
@@ -459,7 +467,7 @@ ggplot(preds_fd_bm5_play, aes(x = secchi, y = predicted_fd_bm5J)) +
 
 ### Does adding these three spectral indices to your dataset improve results? 
 
-Nope, it does not.
+Nope, it does not. I think I have an error in my code, though.  I tried adding the new ratios ('MNDWI',  'NDTI', 'CIG ') to my band_met5_featsJ object, but when I did my script threw an error...
 ```{r}
 
 ```
